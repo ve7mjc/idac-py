@@ -4,3 +4,6 @@
 [submodule "overwatch"]
 	path = overwatch
 	url = git@bitbucket.org:crosswalkguy/overwatch.git
+[submodule "it100"]
+	path = it100
+	url = git@bitbucket.org:crosswalkguy/it100-mqtt.git
