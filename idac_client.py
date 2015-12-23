@@ -31,6 +31,8 @@ class idac_client():
 
 	def __init__(self):
 		
+		self.debugEnabled = False
+		
 		self.mqttMessages = queue.Queue()
 		
 		# return filesystem stat call times as float
@@ -39,37 +41,65 @@ class idac_client():
 		# Default to automatically launching main runloop
 		self.autoRun = True
 		
+		# we want:
+		# script name (eg. script.py)
+		# script path (eg. /opt/idac)
+		
 		# calculate application base name and real application path
-		self.scriptNameBase = sys.argv[0]
-		if "." in sys.argv[0]:
-			e = sys.argv[0].split(".")
-			self.scriptNameBase = e[len(e)-2]
-
+		e = sys.argv[0].split("/")
+		self.appFullName = e[len(e)-1]
+		self.appBaseName = self.appFullName
+		if "." in self.appBaseName:
+			e = self.appBaseName.split('.')
+			self.appBaseName = e[len(e)-2]
 		self.appPath = os.path.dirname(os.path.realpath(sys.argv[0]))
-		self.stateCacheFile = "{0}/{1}.cache".format(self.appPath, self.scriptNameBase)
+		
+		self.stateCacheFile = os.path.join(self.appPath, "{0}.cache".format(self.appBaseName))
+		
+		if self.debugEnabled:
+			print("sys.argv[0]: {0}".format(sys.argv[0]))
+			print("realpath(sys.argv[0]): {0}".format(os.path.realpath(sys.argv[0])))
+			print("dirname(realpath(sys.argv[0])): {0}".format(os.path.dirname(os.path.realpath(sys.argv[0]))))
+	
+			print("script full name: {0}".format(self.appFullName))
+			print("script base name: {0}".format(self.appBaseName))
+			print("script location: {0}".format(self.appPath))
+			print("stateCacheFile: {0}".format(self.stateCacheFile))
 		
 		# Check for commandline arguments
 		# Load config
 		if (len(sys.argv) >= 2):
-			if os.path.isfile(sys.argv[1]):
-				configFilePath = sys.argv[1]
-			else:
+			
+			# build a path from supplied argument accounting for
+			# referencing local file versus remote file (./ vs full path /)
+			self.configPath = sys.argv[1]
+			if self.configPath[:2] != "./":
+				self.configPath = os.path.join(self.appPath, self.configPath)
+
+			# Supplied config path is not a real file or cannot be accessed	
+			if not os.path.isfile(self.configPath):
 				print("cannot access configuration file {0}".format(sys.argv[1]))
 				exit()
 		else:
-			if os.path.isfile("{1}.json".format(self.appPath, self.scriptNameBase)):
-				configFilePath = "{1}.json".format(self.appPath, self.scriptNameBase)
-			else:
-				print("needs config; eg. {0} config.json".format(sys.argv[0]))
+			
+			# build a default config file and path based on script base name
+			self.configPath = os.path.join(self.appPath, "{0}.cfg".format(self.appBaseName))
+			
+			# the default config file does not exist or could not be accessed
+			if not os.path.isfile(self.configPath):
+				print("needs config; eg. {0}.cfg".format(self.appBaseName))
 				exit()
 			
-		# Try to process config file	
+		# Try to process config file
 		try:
-			with open(configFilePath) as data_file:
+			with open(self.configPath) as data_file:
 				self.config = json.load(data_file)
+			print("loaded config from: {0}".format(self.configPath))
 		except:
-			self.writeLog("unable to process configuration file {0}".format(configFilePath))
-			
+			self.writeLog("unable to process configuration file {0}".format(self.configPath))
+		
+		sys.exit()
+		
 		self.mqttc = paho.Client(self.config["mqttClientName"])
 		self.mqttc.on_message = self.on_message
 		self.mqttc.on_connect = self.on_connect

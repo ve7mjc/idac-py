@@ -4,7 +4,11 @@ import urllib.parse
 import urllib.request
 import datetime
 
-# idac controller
+# IDAC Controller
+#
+# NOTE: Some functionality is currently hard-coded
+# for rapid development, namely the mapping of doors
+# to i/o for the Nanaimo Makerspace
 #
 
 from idac_client import *
@@ -20,10 +24,10 @@ class idac(idac_client):
 		if match:
 			self.processToken(match.group(1), payload)
 
-		# process token	against	appropriate	rfid reader
-		match =	re.search("io/([^/]*)/dio-input/([^/]*)/state", topic)
+		# process distio input transition events
+		match =	re.search("io/([^/]*)/dio-input/([^/]*)/transition/(.*)", topic)
 		if match:
-			self.processDistioInputs(match.group(1), match.group(2), payload)
+			self.processDistioInputEvent(match.group(1), match.group(2), match.group(3), payload)
 
 	def	sendTelemetry(self,	token, reader, eventType):
 		
@@ -43,10 +47,15 @@ class idac(idac_client):
    			resp = response.read()
 	
 	# process incoming distio input states
-	def processDistioInputs(self, device, channel, state):
+	def processDistioInputEvent(self, device, channel, direction, event):
 		
-		# front lock button
-		if (channel == "0") and (state == "0"):
+		try:
+			event = json.loads(event)
+		except:
+			self.writeLog("unable to process json event message: {0}".format(event))
+		
+		# request_secure_partition button
+		if (int(channel) == 0) and (direction == "rise") and (int(event["time_elapsed"]) < 2000):
 			self.writeLog("last maker out declared", "notice")
 			self.doors["front-entrance"].lock()
 
