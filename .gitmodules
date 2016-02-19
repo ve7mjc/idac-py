@@ -1,7 +1,7 @@
 [submodule "distio"]
-	path = distio
+	path = lib/distio
 	url = git@github.com:ve7mjc/distio.git
 [submodule "overwatch"]
-	path = overwatch
+	path = lib/overwatch
 	url = git@github.com:ve7mjc/overwatch.git
 
